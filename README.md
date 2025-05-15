@@ -1,62 +1,123 @@
-# Standard RedwoodSDK Starter
+# redwoodsdk + better‑auth + prisma starter
 
-This "standard starter" is the recommended implementation for RedwoodSDK. You get a Typescript project with:
+a slim starter for building cloudflare‑native apps with **redwoodsdk**, **prisma + d1**, and **better‑auth**. the default session storage from the redwoodsdk “standard” template has been removed—authentication is handled entirely by better‑auth’s **email + password** flow, so no durable‑object session state is needed.
 
-- Vite
-- database (Prisma via D1)
-- Session Management (via DurableObjects)
-- Passkey authentication (Webauthn)
-- Storage (via R2)
+> **perfect if you just want: vite‑powered dev, a sqlite db, and a dead‑simple email/password login.**
 
-## Creating your project
+---
 
-```shell
-npx degit redwoodjs/sdk/starters/standard my-project-name
-cd my-project-name
+## stack
+
+| layer          | what we use                      | why                                                |
+| -------------- | -------------------------------- | -------------------------------------------------- |
+| runtime        | cloudflare workers               | edge‑native deployment, built‑in kv/r2/d1 bindings |
+| dev server     | vite                             | instant hmr + first‑class typescript               |
+| database       | prisma client + d1 (sqlite)      | familiar orm, serverless sqlite at the edge        |
+| authentication | better‑auth (`emailAndPassword`) | battle‑tested auth with zero infra                 |
+
+---
+
+## getting started
+
+```bash
+npx degit mj-meyer/rwsdk-better-auth-prisma-starter my‑app
+cd my‑app
 pnpm install
-```
-
-## Running the dev server
-
-```shell
 pnpm dev
 ```
 
-Point your browser to the URL displayed in the terminal (e.g. `http://localhost:5173/`). You should see a "Hello World" message in your browser.
+point your browser at the url vite prints ([http://localhost:5173](http://localhost:5173)).
 
-## Deploying your app
+you can go to [http://localhost:5173/protected](http://localhost:5173/protected) to see the protected route in action. it will redirect you to the login page if you’re not logged in.
 
-### Wrangler Setup
+sign up with an email + password, then log in—no extra setup required.
 
-Within your project's `wrangler.jsonc`:
+---
 
-- Replace the `__change_me__` placeholders with a name for your application
+## configuration
 
-- Create a new D1 database:
+### 1 · d1
 
-```shell
-npx wrangler d1 create my-project-db
+1. create a database:
+
+   ```bash
+   npx wrangler d1 create my‑app‑db
+   ```
+
+2. copy the id wrangler prints and paste it into `wrangler.jsonc`:
+
+   ```jsonc
+   {
+     "d1_databases": [
+       {
+         "binding": "DB",
+         "database_name": "my‑app‑db",
+         "database_id": "<your‑db‑id>",
+       },
+     ],
+   }
+   ```
+
+3. run the prisma migrations (local dev only):
+
+   ```bash
+   pnpm db:migrate
+   ```
+
+### 2 · env vars
+
+| variable             | purpose                      |
+| -------------------- | ---------------------------- |
+| `BETTER_AUTH_SECRET` | used to sign session cookies |
+| `BETTER_AUTH_URL`    | full public url of your app  |
+
+---
+
+### 3 · extending authentication
+
+want google, github, or any other social login? better‑auth ships a cli that patches your prisma schema for you:
+
+```bash
+npx @better-auth/cli@latest generate
 ```
 
-Copy the database ID provided and paste it into your project's `wrangler.jsonc` file:
+that inserts the extra tables/fields your new providers need.
 
-```jsonc
-{
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "my-project-db",
-      "database_id": "your-database-id",
-    },
-  ],
-}
+> **important :** the cli’s automatic migration runner only supports _kysely_ at the moment, so we use prisma’s own flow instead.
+
+```bash
+pnpm migrate:new   # creates a prisma migration file
+pnpm migrate:dev   # applies it to your local d1 database
+# or, for production
+pnpm migrate:prd
 ```
 
-### Authentication Setup
+see the better‑auth cli docs for details → [https://www.better-auth.com/docs/concepts/cli](https://www.better-auth.com/docs/concepts/cli)
 
-For authentication setup and configuration, including optional bot protection, see the [Authentication Documentation](https://docs.rwsdk.com/core/authentication).
+## scripts
 
-## Further Reading
+| command            | action                                                        |
+| ------------------ | ------------------------------------------------------------- |
+| `pnpm dev`         | vite dev server **+** workers runtime (hot‑reload everything) |
+| `pnpm preview`     | run the built worker locally                                  |
+| `pnpm release`     | clean build & publish to Cloudflare via `wrangler deploy`     |
+| `pnpm migrate:new` | create a fresh prisma migration                               |
+| `pnpm migrate:dev` | apply migrations to your _local_ d1 database                  |
+| `pnpm migrate:prd` | apply migrations to the _remote_ d1 database                  |
+| `pnpm seed`        | execute `src/scripts/seed.ts` through the worker runtime      |
+| `pnpm generate`    | regenerate prisma client + wrangler type definitions          |
 
-- [RedwoodSDK Documentation](https://docs.rwsdk.com/)
-- [Cloudflare Workers Secrets](https://developers.cloudflare.com/workers/runtime-apis/secrets/)
+---
+
+## release
+
+```bash
+pnpm release
+```
+
+---
+
+## further reading
+
+- **redwoodsdk docs** · [https://docs.rwsdk.com/](https://docs.rwsdk.com/)
+- **better‑auth** · [https://www.better-auth.com/](https://www.better-auth.com/)
