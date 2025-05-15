@@ -29,8 +29,6 @@
   "dependencies": {
     "@prisma/adapter-d1": "~6.5.0",
     "@prisma/client": "~6.5.0",
-    "@simplewebauthn/browser": "^13.1.0",
-    "@simplewebauthn/server": "^13.1.1",
     "better-auth": "^1.2.7",
     "rwsdk": "0.0.83"
   },
